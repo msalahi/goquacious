@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jroimartin/gocui"
 	"log"
+	"strings"
 )
 
 const (
@@ -100,17 +101,17 @@ func layout(gui *gocui.Gui) error {
 }
 
 func sendMessage(gui *gocui.Gui, chatInput *gocui.View) error {
-	line, err := chatInput.Line(0)
-	if err != nil {
-		return err
-	}
+	line, _ := chatInput.Line(0)
+	line = strings.TrimSpace(line)
 	chatLog, err := gui.View("chatLog")
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(chatLog, line)
-	chatInput.Clear()
 	chatInput.SetCursor(0, 0)
+	if line != "" {
+		fmt.Fprintln(chatLog, strings.TrimSpace(line))
+	}
+	chatInput.Clear()
 	return nil
 }
 
@@ -140,6 +141,6 @@ func main() {
 	gui.ShowCursor = true
 	err := gui.MainLoop()
 	if err != nil && err != gocui.Quit {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 }
