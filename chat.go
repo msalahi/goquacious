@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/jroimartin/gocui"
 	"log"
+	"net"
 	"strings"
-	"time"
 )
 
 var (
-	USERNAME = "murad"
-	MESSAGES = make(chan UserMessage)
+	USERNAME              = "murad"
+	MESSAGE_DISPLAY_QUEUE = make(chan UserMessage)
+	MESSAGE_SEND_QUEUE    = make(chan UserMessage)
+	CONNECTIONS           = make(map[string]net.Conn)
 )
 
 const (
@@ -42,7 +45,6 @@ func drawTitleBar(gui *gocui.Gui) error {
 
 func initContactList(contactList *gocui.View) {
 	contactList.FgColor = gocui.ColorGreen
-	fmt.Fprintln(contactList, "• SadComputer")
 }
 
 func drawContactList(gui *gocui.Gui) error {
@@ -53,6 +55,10 @@ func drawContactList(gui *gocui.Gui) error {
 	if err == gocui.ErrorUnkView {
 		initContactList(contactList)
 		return nil
+	}
+	contactList.Clear()
+	for user, _ := range CONNECTIONS {
+		fmt.Fprintf(contactList, "• %s\n", user)
 	}
 	return err
 }
@@ -118,13 +124,26 @@ func displayMessageFromUser(chatLog *gocui.View, message UserMessage) {
 	}
 }
 
-func queueMessage(user string, message string) {
-	MESSAGES <- UserMessage{user: user, text: message}
+func queueMessageForDisplay(user string, message string) {
+	MESSAGE_DISPLAY_QUEUE <- UserMessage{user: user, text: message}
 }
 
-func sendMessage(gui *gocui.Gui, chatInput *gocui.View) error {
+func queueMessageForSend(user string, message string) {
+	MESSAGE_SEND_QUEUE <- UserMessage{user: user, text: message}
+}
+
+func sendMessage(message UserMessage) {
+	for user, conn := range CONNECTIONS {
+		print(user)
+		messageText := fmt.Sprintf("%s\n%s\n", message.user, message.text)
+		conn.Write([]byte(messageText))
+	}
+}
+
+func handleInputMessage(gui *gocui.Gui, chatInput *gocui.View) error {
 	line, _ := chatInput.Line(0)
-	queueMessage(USERNAME, line)
+	queueMessageForDisplay(USERNAME, line)
+	queueMessageForSend(USERNAME, line)
 	chatInput.Clear()
 	chatInput.SetCursor(0, 0)
 	return nil
@@ -138,10 +157,18 @@ func keyBindings(gui *gocui.Gui) error {
 	if err := gui.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, sendQuit); err != nil {
 		return err
 	}
-	if err := gui.SetKeybinding("chatInput", gocui.KeyEnter, gocui.ModNone, sendMessage); err != nil {
+	if err := gui.SetKeybinding("chatInput", gocui.KeyEnter, gocui.ModNone, handleInputMessage); err != nil {
 		return err
 	}
 	return nil
+}
+
+func listenForMessagesAndSend() {
+	var message UserMessage
+	for {
+		message = <-MESSAGE_SEND_QUEUE
+		sendMessage(message)
+	}
 }
 
 func listenForMessagesAndDisplay(gui *gocui.Gui, displayViewName string) {
@@ -149,7 +176,7 @@ func listenForMessagesAndDisplay(gui *gocui.Gui, displayViewName string) {
 	var view *gocui.View
 	for {
 		if view != nil {
-			message = <-MESSAGES
+			message = <-MESSAGE_DISPLAY_QUEUE
 			displayMessageFromUser(view, message)
 			gui.Flush()
 		} else {
@@ -158,10 +185,45 @@ func listenForMessagesAndDisplay(gui *gocui.Gui, displayViewName string) {
 	}
 }
 
-func talkToSadComputer() {
+func waitForUser(reader *bufio.Reader) (string, error) {
+	user, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(user), nil
+}
+
+func handleConversation(gui *gocui.Gui, conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	user, err := waitForUser(reader)
+	if err != nil {
+		log.Panic(err)
+	}
+	CONNECTIONS[user] = conn
+	gui.Flush()
 	for {
-		queueMessage("SadComputer", "i am a computer")
-		time.Sleep(2 * time.Second)
+		message, err := reader.ReadString('\n')
+		queueMessageForDisplay(user, message)
+		if err != nil || message == "" {
+			break
+		}
+	}
+	delete(CONNECTIONS, user)
+	gui.Flush()
+}
+
+func listenForConnections(localAddress string, gui *gocui.Gui) {
+	listener, err := net.Listen("tcp", localAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		go handleConversation(gui, conn)
 	}
 }
 
@@ -177,7 +239,8 @@ func main() {
 	gui.ShowCursor = true
 
 	go listenForMessagesAndDisplay(gui, "chatLog")
-	go talkToSadComputer()
+	go listenForMessagesAndSend()
+	go listenForConnections("127.0.0.1:55555", gui)
 
 	err := gui.MainLoop()
 	if err != nil && err != gocui.Quit {
