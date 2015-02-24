@@ -5,6 +5,12 @@ import (
 	"github.com/jroimartin/gocui"
 	"log"
 	"strings"
+	"time"
+)
+
+var (
+	USERNAME = "murad"
+	MESSAGES = make(chan UserMessage)
 )
 
 const (
@@ -13,6 +19,11 @@ const (
 	CONTACT_LIST_WIDTH = 30
 	CHAT_INPUT_HEIGHT  = 10
 )
+
+type UserMessage struct {
+	text string
+	user string
+}
 
 func initTitleBar(titleBar *gocui.View) {
 	fmt.Fprintln(titleBar, " > "+TITLE)
@@ -100,18 +111,22 @@ func layout(gui *gocui.Gui) error {
 	return nil
 }
 
+func displayMessageFromUser(chatLog *gocui.View, message UserMessage) {
+	text, user := strings.TrimSpace(message.text), message.user
+	if text != "" {
+		fmt.Fprintf(chatLog, "<%s>: %s\n", user, text)
+	}
+}
+
+func queueMessage(user string, message string) {
+	MESSAGES <- UserMessage{user: user, text: message}
+}
+
 func sendMessage(gui *gocui.Gui, chatInput *gocui.View) error {
 	line, _ := chatInput.Line(0)
-	line = strings.TrimSpace(line)
-	chatLog, err := gui.View("chatLog")
-	if err != nil {
-		return err
-	}
-	chatInput.SetCursor(0, 0)
-	if line != "" {
-		fmt.Fprintln(chatLog, strings.TrimSpace(line))
-	}
+	queueMessage(USERNAME, line)
 	chatInput.Clear()
+	chatInput.SetCursor(0, 0)
 	return nil
 }
 
@@ -129,6 +144,27 @@ func keyBindings(gui *gocui.Gui) error {
 	return nil
 }
 
+func listenForMessagesAndDisplay(gui *gocui.Gui, displayViewName string) {
+	var message UserMessage
+	var view *gocui.View
+	for {
+		if view != nil {
+			message = <-MESSAGES
+			displayMessageFromUser(view, message)
+			gui.Flush()
+		} else {
+			view, _ = gui.View(displayViewName)
+		}
+	}
+}
+
+func talkToSadComputer() {
+	for {
+		queueMessage("SadComputer", "i am a computer")
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func main() {
 	gui := gocui.NewGui()
 	if err := gui.Init(); err != nil {
@@ -139,6 +175,10 @@ func main() {
 	gui.SetLayout(layout)
 	keyBindings(gui)
 	gui.ShowCursor = true
+
+	go listenForMessagesAndDisplay(gui, "chatLog")
+	go talkToSadComputer()
+
 	err := gui.MainLoop()
 	if err != nil && err != gocui.Quit {
 		log.Panicln(err)
