@@ -21,8 +21,7 @@ func getIPNeighbors(host string) []string {
 			LANIPS = append(LANIPS, ip.String())
 		}
 	}
-	//return LANIPS
-	return []string{"192.168.1.148"}
+	return LANIPS
 }
 
 func inc(ip net.IP) {
