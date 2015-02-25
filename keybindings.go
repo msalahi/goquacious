@@ -2,15 +2,16 @@ package main
 
 import (
 	"github.com/jroimartin/gocui"
+	"strings"
 )
 
 func (chatApp ChatApp) handleInputMessage(gui *gocui.Gui, chatInput *gocui.View) error {
-	line, err := chatInput.Line(0)
-	if err != nil {
-		return err
+	line, _ := chatInput.Line(0)
+	line = strings.TrimSpace(line)
+	if line != "" {
+		chatApp.QueueUserMessageForDisplay(_USERNAME, line)
+		chatApp.QueueMessageForSend(line)
 	}
-	chatApp.QueueUserMessageForDisplay(_USERNAME, line)
-	chatApp.QueueMessageForSend(line)
 	chatInput.Clear()
 	chatInput.SetCursor(0, 0)
 	return nil

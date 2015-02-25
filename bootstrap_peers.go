@@ -62,7 +62,6 @@ func (chatApp ChatApp) InitiateConversation(remoteAddress string) error {
 	timeout, _ := time.ParseDuration("200ms")
 	conn, err := net.DialTimeout("tcp", remoteAddress, timeout)
 	if err != nil {
-		println("NOP")
 		return err
 	}
 	defer conn.Close()
