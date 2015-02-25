@@ -18,8 +18,7 @@ func sendMessage(conn net.Conn, message string) {
 
 func (chatApp ChatApp) broadcastMessage(message string) {
 	for _, conn := range chatApp.Connections {
-		messageFromMe := formatUserMessage(_USERNAME, message)
-		sendMessage(conn, messageFromMe)
+		sendMessage(conn, message)
 	}
 }
 

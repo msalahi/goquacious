@@ -11,8 +11,8 @@ func formatUserMessage(user string, message string) string {
 }
 
 func displayMessage(chatLog *gocui.View, message string) {
-	text := strings.TrimSpace(message)
-	if text != "" {
+	message = strings.TrimSpace(message)
+	if message != "" {
 		fmt.Fprintln(chatLog, message)
 	}
 }

@@ -21,7 +21,8 @@ func getIPNeighbors(host string) []string {
 			LANIPS = append(LANIPS, ip.String())
 		}
 	}
-	return LANIPS
+	//return LANIPS
+	return []string{"192.168.1.148"}
 }
 
 func inc(ip net.IP) {
@@ -62,6 +63,7 @@ func (chatApp ChatApp) InitiateConversation(remoteAddress string) error {
 	timeout, _ := time.ParseDuration("200ms")
 	conn, err := net.DialTimeout("tcp", remoteAddress, timeout)
 	if err != nil {
+		println("NOP")
 		return err
 	}
 	defer conn.Close()
@@ -75,10 +77,10 @@ func (chatApp ChatApp) InitiateConversation(remoteAddress string) error {
 	chatApp.Gui.Flush()
 	for {
 		message, err := reader.ReadString('\n')
-		chatApp.QueueUserMessageForDisplay(_USERNAME, message)
 		if err != nil || message == "" {
 			break
 		}
+		chatApp.QueueUserMessageForDisplay(_USERNAME, message)
 	}
 	delete(chatApp.Connections, remoteUser)
 	chatApp.Gui.Flush()
