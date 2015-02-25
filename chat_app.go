@@ -20,6 +20,9 @@ func CreateChatApp() ChatApp {
 	}
 
 	gui.ShowCursor = true
+	gui.SelBgColor = gocui.ColorBlack
+	gui.SelFgColor = gocui.ColorWhite
+
 	connections := make(map[string]net.Conn)
 	displayQueue := make(chan string)
 	sendQueue := make(chan string)
