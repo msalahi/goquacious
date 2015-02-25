@@ -1,7 +1,10 @@
 package main
 
+var (
+	_USERNAME = ""
+)
+
 const (
-	_USERNAME           = "TestUser"
 	_TITLE              = "ScrintedChat"
 	_TITLE_HEIGHT       = 2
 	_CONTACT_LIST_WIDTH = 30

@@ -59,8 +59,15 @@ func initiateUsernameExchange(conn net.Conn) (string, error) {
 }
 
 func (chatApp ChatApp) InitiateConversation(remoteAddress string) error {
-	timeout, _ := time.ParseDuration("2s")
-	conn, err := net.DialTimeout("tcp", remoteAddress, timeout)
+	timeout, _ := time.ParseDuration("500ms")
+	tries := 3
+	var conn net.Conn
+	var err error
+
+	for tries > 0 && conn == nil {
+		conn, err = net.DialTimeout("tcp", remoteAddress, timeout)
+		tries -= 1
+	}
 	if err != nil {
 		return err
 	}
