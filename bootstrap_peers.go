@@ -17,10 +17,10 @@ func getIPNeighbors(host string) []string {
 		log.Fatal(err)
 	}
 	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
-		LANIPS = append(LANIPS, ip.String())
+		if ip.String() != host {
+			LANIPS = append(LANIPS, ip.String())
+		}
 	}
-	//return LANIPS
-	LANIPS = []string{"192.168.1.148"}
 	return LANIPS
 }
 
@@ -58,8 +58,14 @@ func initiateUsernameExchange(conn net.Conn) (string, error) {
 	return strings.TrimSpace(user), nil
 }
 
-func (chatApp ChatApp) InitiateConversation(conn net.Conn) error {
+func (chatApp ChatApp) InitiateConversation(remoteAddress string) error {
+	timeout, _ := time.ParseDuration("200ms")
+	conn, err := net.DialTimeout("tcp", remoteAddress, timeout)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
+
 	reader := bufio.NewReader(conn)
 	remoteUser, err := initiateUsernameExchange(conn)
 	if err != nil {
@@ -80,14 +86,8 @@ func (chatApp ChatApp) InitiateConversation(conn net.Conn) error {
 }
 
 func (chatApp ChatApp) BootstrapPeers() {
-	timeout, _ := time.ParseDuration("1s")
 	for _, ip := range getIPNeighbors(getLANIP()) {
 		remoteAddress := net.JoinHostPort(ip, _PORT)
-		conn, err := net.DialTimeout("tcp", remoteAddress, timeout)
-		if err != nil {
-			println("NOP" + remoteAddress)
-			continue
-		}
-		go chatApp.InitiateConversation(conn)
+		go chatApp.InitiateConversation(remoteAddress)
 	}
 }
