@@ -51,10 +51,10 @@ func (chatApp ChatApp) handleConversation(conn net.Conn) {
 	chatApp.Gui.Flush()
 	for {
 		message, err := reader.ReadString('\n')
-		chatApp.QueueUserMessageForDisplay(user, message)
 		if err != nil || message == "" {
 			break
 		}
+		chatApp.QueueUserMessageForDisplay(user, message)
 	}
 	delete(chatApp.Connections, user)
 	chatApp.Gui.Flush()
